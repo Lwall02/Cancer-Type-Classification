@@ -7,3 +7,4 @@ test.csv
 testingresult.csv
 clean_training_data.parquet
 clean_test_data.parquet
+data/analysis_data
