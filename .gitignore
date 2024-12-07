@@ -5,5 +5,5 @@
 train.csv
 test.csv
 testingresult.csv
-clean_training_data.csv
-clean_test_data.csv
+clean_training_data.parquet
+clean_test_data.parquet
