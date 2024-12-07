@@ -7,6 +7,16 @@ library(tree)
 # The second column is 'cancer', which is the target variable
 # The rest are the 500 gene with the highest varaince
 
+# Calculate variance for each column except id and cancer column
+variances <- apply(training_data[, -(1:2)], 2, var)
+
+# Select top 500 genes with highest variance
+metadata <- training_data[, 1:2]
+top_genes_col_number <- order(variances, decreasing = TRUE)[1:500]
+data_reduced <- training_data[, top_genes_col_number]
+data_reduced <- cbind(metadata, data_reduced)
+head(data_reduced[, 1:10])
+
 train <- sample(nrow(data_reduced), nrow(data_reduced)/2)
 
 # First random forest is m = sqrt(p) = sqrt(500) ~ 22
