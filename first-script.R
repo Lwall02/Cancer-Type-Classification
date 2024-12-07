@@ -55,4 +55,3 @@ cat("Predicted Results (ID and Predicted Cancer):\n")
 print(predicted_result)
 
 write.csv(predicted_result, "_______", row.names = FALSE)
-
