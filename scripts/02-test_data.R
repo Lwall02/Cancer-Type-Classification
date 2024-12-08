@@ -13,7 +13,7 @@ library(testthat)
 
 #### Read in clean data ####
 clean_training_data <- read_parquet("data/analysis_data/clean_training_data.parquet")
-clean_test_data <- read_csv("data/analysis_data/clean_test_data.csv")
+clean_test_data <- read_parquet("data/analysis_data/clean_test_data.parquet")
 
 #### Test data ####
 # Perform checks on the training data
