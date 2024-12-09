@@ -30,7 +30,7 @@ set.seed(9)
 train_features <- clean_training_data[, -c(1:2)]  # Remove first two columns from training data
 test_features <- clean_testing_data[, -c(1:1)]    # Remove first column from testing data
 
-# Step 2: Perform cross-validation to find optimal lambda
+# Perform cross-validation to find optimal lambda
 # Use training data for cross-validation, predicting the 'cancer' outcome variable
 cvfit <- cv.glmnet(as.matrix(train_features), clean_training_data$cancer, family = "multinomial")
 
@@ -54,20 +54,17 @@ for (i in 1:3) {
   print(non_zero_class_coefs)
 }
 
-#The best lambda from the cross-validation
-cat("Best lambda:", best_lambda, "\n")
-
-# Step 3: Ensure the columns of testing data match the training data
+# Ensure the columns of testing data match the training data
 # Reorder testing data columns to match the training data's feature order
 test_features <- test_features[, colnames(train_features)]
 
-# Step 4: Predict the class labels using the best lambda for the testing data
+# Predict the class labels using the best lambda for the testing data
 predictions_test <- predict(cvfit, newx = as.matrix(test_features), s = "lambda.min", type = "class")
 
 # Check the predictions
 head(predictions_test)
 
-# Create the new n x 2 matrix with ID and predicted cancer labels
+# Create the new matrix with ID and predicted cancer labels
 predicted_result <- data.frame(ID = clean_test_data$id, Predicted_Cancer = predictions_test)
 
 # Display the result

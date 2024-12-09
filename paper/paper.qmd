@@ -29,6 +29,8 @@ library(coefplot)
 #### Read in needed data ####
 clean_training_data <- read_parquet(here::here("data/analysis_data/clean_training_data.parquet"))
 clean_test_data <- read_parquet(here::here("data/analysis_data/clean_test_data.parquet"))
+
+cvfit <- readRDS(here::here("models/glmnet_model.rds"))
 ```
 
 # Problem Statement
@@ -66,33 +68,6 @@ The data cleaning process focused on ensuring that column names were properly fo
 ### Data Transformation
 We did not employ any data transformation ourselves on this data, as the downloaded training and test datasets already contained gene expression values in log space. This transformation is particularly advantageous for our use of the glmnet model, which applies Ridge and Lasso regression. Standardization of input variables is essential for effective regularization in these models. The log transformation minimizes the influence of outliers, stabilizes variance, and promotes a more normal distribution of the data. @fig-data represents the distribution of log-transformed gene expression values across all genes in the dataset. While individual genes may exhibit normality in log space, this plot shows the combined contributions of diverse gene expression profiles, emphasizing the variability in gene activity among samples. Importantly, interpretability is preserved with log-transformed data, as a one-unit increase or decrease in log values corresponds to a multiplicative change on the original scale.
 
-```{r}
-#| label: fig-data
-#| fig-cap: This plot represents the distribution of log-transformed gene expression values across all genes in the dataset. While individual genes may exhibit normality in log space, the aggregated density plot suggests multimodal tendencies and a slight right skew.
-#| echo: false
-#| warning: false
-
-# Remove non-gene columns ('id' and 'cancer')
-gene_data <- clean_training_data[, !(names(clean_training_data) %in% c("id", "cancer"))]
-
-# Convert data to a long format for ggplot2
-gene_data_long <- data.frame(value = unlist(gene_data), 
-                             gene = rep(names(gene_data), each = nrow(gene_data)))
-
-# Make the overlaid density plot
-ggplot(gene_data_long, aes(x = value, group = gene)) +
-  geom_density(alpha = 0.3, color = "blue") +
-  labs(
-    title = "Density Plot of Gene Expression Data",
-    x = "Log Gene Expression",
-    y = "Density"
-  ) +
-  theme_minimal() +
-  theme(legend.position = "none")
-
-```
-
-
 ### Feature Selection
 No explicit feature selection techniques were applied as the glmnet model inherently performs regularization and variable selection during training. All 12,043 features were employed in the building of our model.
 
@@ -108,7 +83,7 @@ To optimize the regularization parameter, λ (lambda), and to determine the most
 We chose `cv.glmnet` function due to its ability to handle datasets with a large number of predictors efficiently, providing a versatile framework for regularized regression. The ability to perform LASSO and Ridge regularization allows for flexibility in addressing the complex genetic data. The regularization of LASSO is particularly beneficial for sparse models, where many of the features may be irrelevant or redundant. On the other hand, regularization of Ridge works well when it is assumed that most features contribute to the model, allowing for shrinkage without eliminating any features. By utilizing the cv.glmnet function without explicitly specifying whether to use LASSO or Ridge, we ensured an unbiased comparison of both methods to determine the most appropriate model for our dataset.
 
 ### Training and Evaluation
-The model was trained using the given training data to predict the cancer subtype outcome (multinomial classification). Once the optimal λ value was identified via cross-validation, the final model was used to generate predictions on the testing data. Model performance was evaluated based on its ability to accurately classify patients into the correct cancer subtypes. The effectiveness of the model was gauged by measuring the classification accuracy, ensuring that the selected model generalized well to new data. This iterative approach of training and validation allowed for the identification of the model configuration that best-balanced bias and variance, ultimately leading to robust predictions. This process of regularization selection and cross-validation ensures that the model is both accurate and generalizable.
+The model was trained using the given training data to predict the cancer subtype outcome (multinomial classification). Once the optimal λ value was identified via cross-validation, look at @fig-cverror, the final model was used to generate predictions on the testing data. Model performance was evaluated based on its ability to accurately classify patients into the correct cancer subtypes. The effectiveness of the model was gauged by measuring the classification accuracy, ensuring that the selected model generalized well to new data. This iterative approach of training and validation allowed for the identification of the model configuration that best-balanced bias and variance, ultimately leading to robust predictions. This process of regularization selection and cross-validation ensures that the model is both accurate and generalizable.
 
 ## Evaluation Metrics
 The primary metric used to evaluate the performance of our models is the testing misclassification error, as it directly reflects the model's ability to correctly classify unseen data. Misclassification error is calculated as the proportion of incorrect predictions to the total number of predictions, with a lower value indicating better model performance. This metric is particularly relevant in the context of our study, where the goal is to classify cancer patients into three distinct subtypes based on gene expression data. A model that minimizes the misclassification error will be more reliable and applicable in clinical settings, where accurate classification is critical for patient care.
@@ -149,11 +124,183 @@ Finally, external validation of the model is a critical step in assessing its pr
 
 In summary, while the model developed shows promise, addressing the limitations discussed above and exploring these future research directions will be essential for improving its robustness, interpretability, and practical application. By extending this work to incorporate additional data sources and more complex modeling techniques, future research can contribute significantly to the development of more accurate and reliable cancer classification tools, ultimately enhancing patient outcomes and advancing personalized cancer treatment strategies.
 
+\newpage
+
+# Figures
+```{r}
+#| label: fig-data
+#| fig-cap: This plot represents the distribution of log-transformed gene expression values across all genes in the dataset. While individual genes may exhibit normality in log space, the aggregated density plot suggests multimodal tendencies and a slight right skew.
+#| echo: false
+#| warning: false
+
+# Remove non-gene columns ('id' and 'cancer')
+gene_data <- clean_training_data[, !(names(clean_training_data) %in% c("id", "cancer"))]
+
+# Convert data to a long format for ggplot2
+gene_data_long <- data.frame(value = unlist(gene_data), 
+                             gene = rep(names(gene_data), each = nrow(gene_data)))
+
+# Make the overlaid density plot
+ggplot(gene_data_long, aes(x = value, group = gene)) +
+  geom_density(alpha = 0.3, color = "blue") +
+  labs(
+    title = "Density Plot of Gene Expression Data",
+    x = "Log Gene Expression",
+    y = "Density"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+```{r}
+#| label: fig-cverror
+#| fig-cap: This plot represents the cross-validation error of our `glmnet` multinomial model as our lambda regularization parameter increases. We also show the chosen lambda at λ=0.00487. This lambda value is chosen such that the model acheives the best fit, balancing its bias and variance. 
+#| echo: false
+#| warning: false
+
+# Extract lambda and cross-validation errors
+lambda_values <- cvfit$lambda
+cv_errors <- cvfit$cvm  # Mean cross-validated error
+cv_sd <- cvfit$cvsd    # Standard deviation of cross-validation error
+best_lambda <- cvfit$lambda.min # Find lambda with minimum cv error
+best_log_lambda <- log(best_lambda) 
+best_error <- min(cvfit$cvm)  # Minimum cross-validation error
+
+# Create a data frame
+cv_data <- data.frame(
+  LogLambda = log(lambda_values),
+  CVError = cv_errors,
+  Upper = cv_errors + cv_sd,
+  Lower = cv_errors - cv_sd
+)
+
+# Plot using ggplot2
+ggplot(cv_data, aes(x = LogLambda, y = CVError)) +
+  geom_line(color = "blue") +
+  geom_ribbon(aes(ymin = Lower, ymax = Upper), fill = "lightblue", alpha = 0.3) +
+  labs(
+    title = "Cross-Validated Error vs. Log(Lambda)",
+    x = "Log(Lambda)",
+    y = "Cross-Validated Error"
+  ) +
+  geom_point(aes(x = best_log_lambda, y = best_error), color = "red", size = 3) +
+  annotate(
+    "text",
+    x = best_log_lambda,
+    y = best_error + 0.1, # Adjust slightly above the point
+    label = paste0("Best Lambda = ", round(best_lambda, 5)),
+    color = "red",
+    size = 4,
+    hjust = 0
+  ) +
+  theme_minimal()
+```
+
+\newpage
+
 # Code
-All the code needed to reproduce this paper and the results of our model can be found in our Github repository [https://github.com/Lwall02/Cancer-Type-Classification](https://github.com/Lwall02/Cancer-Type-Classification). 
+All the code needed to reproduce this paper and the results of our model can be found in our Github repository [https://github.com/Lwall02/Cancer-Type-Classification](https://github.com/Lwall02/Cancer-Type-Classification). It can also be found below knitted to this paper.
 
 Specifically, the code that allows you to download, clean, test and produce the model is available in the `scripts` folder. The model is saved as a .rds file in the `models` folder. The raw and cleaned training and testing data as well as our prediction results is available in the `data` folder. Lastly, the code and references used to make this paper is all available in the `paper` folder.
 The `testingresult.csv` file in the `data` folder is our exact submission for the Kaggle competition that earned us third place with a score of 1.000.
+
+```{r}
+#| eval: false
+#| warning: false
+
+#### Workspace setup ####
+library(tidyverse)
+library(janitor)
+library(arrow)
+
+#### Read in data ####
+training_data <- read_csv("data/raw_data/train.csv")
+test_data <- read_csv("data/raw_data/test.csv")
+
+#### Clean data ####
+# Clean column names
+clean_training_data <- training_data |>
+  clean_names()
+clean_test_data <- test_data |>
+  clean_names()
+
+# Convert the response variable to a factor
+clean_training_data$cancer <- factor(clean_training_data$cancer, levels = c(1, 2, 3))
+
+#### Save data ####
+write_parquet(clean_training_data, "data/analysis_data/clean_training_data.parquet")
+write_parquet(clean_test_data, "data/analysis_data/clean_test_data.parquet")
+
+```
+```{r}
+#| eval: false
+#| warning: false
+
+#### Read in clean data ####
+# Step 1: download data and get features
+clean_training_data <- read_parquet("data/analysis_data/clean_training_data.parquet")
+clean_test_data <- read_parquet("data/analysis_data/clean_test_data.parquet")
+
+# If needed: load the raw training and testing data
+# training_data <- read.csv("train.csv")
+# testing_data <- read.csv("testing.csv")
+
+
+#### GLMnet model and predictions####
+set.seed(9)
+
+train_features <- clean_training_data[, -c(1:2)]  # Remove first two columns from training data
+test_features <- clean_testing_data[, -c(1:1)]    # Remove first column from testing data
+
+# Perform cross-validation to find optimal lambda
+# Use training data for cross-validation, predicting the 'cancer' outcome variable
+cvfit <- cv.glmnet(as.matrix(train_features), clean_training_data$cancer, family = "multinomial")
+
+# To check the coefficients at the best lambda
+cat("Coefficients at the best lambda:\n")
+print(cvfit$nzero[which(cvfit$lambda == cvfit$lambda.min)])
+
+coefs_list <- predict(cvfit, type = "coef", s = "lambda.min")
+
+# Loop through each class 
+for (i in 1:3) {
+  coefs_sparse_matrix <- coefs_list[[i]]
+  
+  coefs_dense_matrix <- as.matrix(coefs_sparse_matrix)
+  
+  cat("Number of coefficients for Class", i, ":", nrow(coefs_dense_matrix), "\n")
+  
+  non_zero_class_coefs <- coefs_dense_matrix[coefs_dense_matrix[, 1] != 0, ]
+  
+  cat("\nClass", i, "Coefficients:\n")
+  print(non_zero_class_coefs)
+}
+
+# Ensure the columns of testing data match the training data
+# Reorder testing data columns to match the training data's feature order
+test_features <- test_features[, colnames(train_features)]
+
+# Predict the class labels using the best lambda for the testing data
+predictions_test <- predict(cvfit, newx = as.matrix(test_features), s = "lambda.min", type = "class")
+
+# Check the predictions
+head(predictions_test)
+
+# Create the new matrix with ID and predicted cancer labels
+predicted_result <- data.frame(ID = clean_test_data$id, Predicted_Cancer = predictions_test)
+
+# Display the result
+cat("Predicted Results (ID and Predicted Cancer):\n")
+print(predicted_result)
+
+
+#### Save prediction results and model ####
+write.csv(predicted_result, "data/prediction_data/testingresult.csv", row.names = FALSE)
+saveRDS(
+  cvfit,
+  file = "models/glmnet_model.rds"
+)
+```
 
 \newpage
 
