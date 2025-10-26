@@ -2,7 +2,7 @@
 
 This project applies multinomial logistic regression with LASSO regularization to classify cancer patients into three distinct subtypes using gene expression data. The work is based on our submission to a public Kaggle Cancer Type Classification Competition, where our model achieved a perfect score of 1.000 (3rd place out of 26 competeing models).
 
-#### 🎯 Research Objective
+## 🎯 Research Objective
 
 To accurately classify patients into one of three cancer subtypes using high-dimensional gene expression data:
 
@@ -12,48 +12,58 @@ To accurately classify patients into one of three cancer subtypes using high-dim
 
 Accurate subtype classification can improve early detection, inform treatment plans, and enhance our understanding of cancer genetics.
 
-#### 📊 Model Description
+## 📊 Model Description
 
-The model framework employs Multinomial Logistic Regression with LASSO regularization, implemented via the R package `glmnet`.
+The model framework employs Multinomial Logistic Regression with LASSO regularization, implemented via the R package `glmnet`. This combination allows both multi-class prediction and automatic feature selection among 12,000+ gene expression variables.
 
-The underlying model is:
-
-- **Model Type:** Multinomial Logistic Regression
-- **Regularization:** LASSO (L1) penalty for feature selection
-- **Optimization:** 10-fold cross-validation using `cv.glmnet`
 - **Data Dimensions:**
    - 12,043 features (gene expression levels)
    - 886 training patients (GBM = 376, LUSC = 90, OV = 420)
    - 379 testing patients
 
-The LASSO penalty enforces sparsity by shrinking irrelevant gene coefficients to zero, identifying a smaller subset of genes with predictive importance.
+We can represent the probability that observation $i$ belongs to cancer type $c \in \\{1,2,3\\}$:
 
-#### ⚙️ Data Processing
+![equation](https://latex.codecogs.com/svg.image?P(Y_i=c|x_i)=\frac{e^{\beta_{0c}+\beta_{1c}x_{i1}+...+\beta_{pc}x_{ip}}}{\sum_{j=1}^3e^{\beta_{0j}+\beta_{1j}x_{i1}+...+\beta_{pj}x_{ip}}})
+
+where each $x_i = (x_{i1}, x_{i2}, \..., x_{ip})$ represents the gene expression vector for patient $i$ with $p = 12,043$ genes.
+
+Then, the LASSO-regularized loss function minimized by the `glmnet` algorithm is:
+
+![equation](https://latex.codecogs.com/svg.image?\hat{\beta}=\arg\min_{\beta}\{-\ell(\beta)+\lambda\sum_{c=1}^3\sum_{j=1}^p|\beta_{jc}|\})
+
+where:
+- $l(\beta)$ is the multinomial log-likelihood,
+- $\lambda$ is the regularization parameter, controlling sparsity, and
+- The LASSO penalty $\sum | \beta_{jc} |$ forces small or irrelevant coefficients toward zero.
+
+This formulation allows the model to isolate a sparse, interpretable subset of genes that most strongly differentiate the three cancer subtypes, enhancing both accuracy and biological insight
+
+### ⚙️ Data Processing
 
 - **Source:** The Cancer Genome Atlas (TCGA) via Kaggle
 - **Platform:** Affymetrix HT Human Genome U133a microarray
 - **Transformation:** All gene expression values were log-transformed prior to modeling for variance stabilization.
 - **Cleaning:** Ensured valid feature names, removed inconsistencies, and encoded cancer types as categorical factors.
 
-#### 🧠 Model Training & Validation
+### 🧠 Model Training & Validation
 
 Cross-validation was used to tune the regularization parameter λ, balancing bias and variance:
 
-- Cross-validation: 10-fold CV on training data
-- Best λ: ≈ 0.00487
-- Packages Used: `glmnet`, `tidyverse`, `janitor`, `arrow`, `coefplot`
-- Evaluation Metric: Misclassification error
+- **Optimization:** 10-fold cross-validation on training data
+- **Best λ:** ≈ 0.00487
+- **Packages Used:** `glmnet`, `tidyverse`, `janitor`, `arrow`, `coefplot`
+- **Evaluation Metric:** Misclassification error
 
 All model training was conducted in R 4.3 using reproducible scripts included in the `scripts/` directory.
 
-#### 🔍 Key Takeaways
+## 🔍 Key Takeaways
 
 - LASSO effectively reduced over 12,000 features to a smaller interpretable subset of genes.
 - Perfect test accuracy demonstrates strong discriminative power between GBM, LUSC, and OV subtypes.
 - The workflow demonstrates the power of regularized regression for high-dimensional biomedical data.
 - This approach may inform future research into gene-level biomarkers for early cancer detection.
 
-#### File Structure
+## File Structure
 
 The repo is structured as:
 
