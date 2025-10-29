@@ -33,7 +33,7 @@ Then, the LASSO-regularized loss function minimized by the `glmnet` algorithm is
 
 where:
 - $l(\beta)$ is the multinomial log-likelihood,
-- $\lambda$ is the regularization parameter, controlling sparsity, and
+- $\lambda$ is the regularization parameter, and
 - The LASSO penalty $\sum | \beta_{jc} |$ forces small or irrelevant coefficients toward zero.
 
 This formulation allows the model to isolate a sparse, interpretable subset of genes that most strongly differentiate the three cancer subtypes, enhancing both accuracy and biological insight
